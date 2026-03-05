@@ -5,10 +5,10 @@ const mongoose = require('mongoose');
 const app = express();
 app.use(express.json());
 
-// 1. Definição do Schema
+// 1. Definição do Schema (mantido conforme sua última versão)
 const VagaSchema = new mongoose.Schema({
     titulo: String,
-    observaca: String,
+    observacao: String,
     numeroVaga: String,
     formacao: String,
     conhecimento: [String],
@@ -22,44 +22,54 @@ const VagaSchema = new mongoose.Schema({
 
 const Vaga = mongoose.model('Vaga', VagaSchema);
 
-// 2. Função de Setup Inicial
+// 2. Rota Raiz para confirmação visual
+app.get('/', (req, res) => {
+    res.status(200).send({
+        status: "Online",
+        mensagem: "API do Projeto MATEP conectada com sucesso!",
+        database: mongoose.connection.readyState === 1 ? "Conectado" : "Desconectado"
+    });
+});
+
+// 3. Função de Setup
 const setupDatabase = async () => {
     try {
-        const count = await Vaga.countDocuments({ numeroVaga: "03" });
-        
-        if (count === 0) {
+        const existeVaga = await Vaga.findOne({ numeroVaga: "03" });
+        if (!existeVaga) {
             await Vaga.create({
+                titulo: "Perfis das Bolsas FINEP – Projeto MATEP",
+                observacao: "são 03 três vagas SET-I disponíveis",
                 numeroVaga: "03",
                 formacao: "Cursando: Engenharia química, Engenharia Aeroespacial ou áreas correlatas",
-                conhecimento: [
-                    "Tema: Propelentes sólidos compósitos",
-                    "Familiaridade com laboratório de química",
-                    "Manipulação de vidrarias",
-                    "Procedimentos experimentais",
-                    "Desejável: inglês"
-                ],
-                experiencia: "Aluno de nível superior com experiência em atividades de pesquisa, desenvolvimento ou inovação",
+                conhecimento: ["Tema: Propelentes sólidos compósitos", "Laboratório de química", "Inglês desejável"],
+                experiencia: "Aluno de nível superior em PD&I",
                 modalidade: "SET I",
-                valor: 1040.00,
-                dataLancamento: new Date("2026-03-02"),
-                dataEncerramento: null
+                valor: "R$ 1.040,00",
+                dataLancamento: "02/03/2026",
+                dataEncerramento: "",
+                created_at: new Date().toISOString()
             });
-            console.log("✅ Setup: Vaga 03 do Projeto MATEP inserida com sucesso.");
-        } else {
-            console.log("ℹ️ Setup: Base de dados já contém a vaga 03.");
+            return "Setup realizado com sucesso.";
         }
+        return "Banco já inicializado.";
     } catch (err) {
-        console.error("❌ Erro no setup:", err);
+        return "Erro no setup: " + err.message;
     }
 };
 
-// 3. Conexão MongoDB e Start do Servidor
+// 4. Conexão e Exportação para Vercel
 mongoose.connect(process.env.MONGODB_URI)
-    .then(() => {
-        console.log("📡 Conectado ao MongoDB Atlas");
-        setupDatabase(); // Executa o setup inicial
-        
-        const PORT = process.env.PORT || 3000;
-        app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+    .then(async () => {
+        console.log("📡 MongoDB Conectado");
+        await setupDatabase();
     })
-    .catch(err => console.error("Erro ao conectar no MongoDB:", err));
+    .catch(err => console.error("Erro MongoDB:", err));
+
+// Necessário para a Vercel tratar o Express
+module.exports = app;
+
+// O app.listen continua para desenvolvimento local
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => console.log(`🚀 Server on: http://localhost:${PORT}`));
+}
